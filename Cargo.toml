@@ -1,0 +1,11 @@
+[package]
+name = "ttrack-server-rust"
+version = "0.1.0"
+authors = ["Thomas Subera <thomas.subera@gmail.com>"]
+
+[dependencies]
+actix-web = "0.7.7"
+postgres = "0.15.2"
+serde = "1.0.79"
+serde_json = "1.0.27"
+serde_derive = "1.0.79"
