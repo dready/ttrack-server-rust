@@ -56,17 +56,23 @@ fn users_hashmap(req: &HttpRequest, db: DbExecutor) -> impl Responder {
         };
         users.insert(user.id, user);
     }
+    users
 }
 
 fn users(req: &HttpRequest, db: DbExecutor) -> impl Responder {
     let sql = "SELECT id, firstname, lastname, email FROM users";
 
-    &db.0.query(sql, &[]).unwrap().iter().map(|row| User {
-        id: row.get(0),
-        firstname: row.get(1),
-        lastname: row.get(2),
-        email: row.get(3),
-    })
+    let mut u = Vec::new();
+    for row in &db.0.query(sql, &[]).unwrap() {
+        let user = User {
+            id: row.get(0),
+            firstname: row.get(1),
+            lastname: row.get(2),
+            email: row.get(3),
+        };
+        u.push(user);
+    }
+    u
 }
 
 fn greet(req: &HttpRequest) -> impl Responder {
