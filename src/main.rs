@@ -5,10 +5,10 @@ extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 
-use actix_web::{server, App, Error, HttpRequest, HttpResponse, Responder};
+use actix_web::{http, server, App, Error, HttpRequest, HttpResponse, Json, Responder};
+use actix_web::actix::actix::{Actor, SyncContext};
 use postgres::{Connection, TlsMode};
-use std::collections::HashMap;
-use std::time::Instant;
+// use std::time::Instant;
 
 #[derive(Serialize, Debug)]
 struct User {
@@ -34,6 +34,10 @@ impl Responder for User {
 
 pub struct DbExecutor(Connection);
 
+impl Actor for DbExecutor {
+    type Context = SyncContext<Self>;
+}
+
 impl DbExecutor {
     pub fn new(url: &str) -> DbExecutor {
         DbExecutor(match Connection::connect(url, TlsMode::None) {
@@ -43,23 +47,17 @@ impl DbExecutor {
     }
 }
 
-fn users_hashmap(req: &HttpRequest, db: DbExecutor) -> impl Responder {
-    let sql = "SELECT * FROM users WHERE (usr_employment_start IS NULL OR usr_employment_start <= $1) AND (usr_employment_end IS NULL OR usr_employment_end >= $1)";
-    let now = Instant::now();
-    let mut users = HashMap::new();
-    for row in &db.0.query(sql, &[]).unwrap() {
-        let user = User {
-            id: row.get(0),
-            firstname: row.get(1),
-            lastname: row.get(2),
-            email: row.get(3),
-        };
-        users.insert(user.id, user);
-    }
-    users
+struct AppState {
+    db_executor: DbExecutor,
 }
 
-fn users(req: &HttpRequest, db: DbExecutor) -> impl Responder {
+// Response Error trait
+
+fn users(req: &HttpRequest<AppState>) -> impl Responder {
+    let db = req.state().db_executor; // <- get count
+
+    // let sql = "SELECT * FROM users WHERE (usr_employment_start IS NULL OR usr_employment_start <= $1) AND (usr_employment_end IS NULL OR usr_employment_end >= $1)";
+    // let now = Instant::now();
     let sql = "SELECT id, firstname, lastname, email FROM users";
 
     let mut u = Vec::new();
@@ -72,10 +70,12 @@ fn users(req: &HttpRequest, db: DbExecutor) -> impl Responder {
         };
         u.push(user);
     }
-    u
+    Json(u)
 }
 
-fn greet(req: &HttpRequest) -> impl Responder {
+// map().collect() -> Trait fromIterator
+
+fn greet(req: &HttpRequest<AppState>) -> impl Responder {
     let to = req.match_info().get("name").unwrap_or("World");
     format!("Hello {}!", to)
 }
@@ -84,9 +84,10 @@ fn main() {
     let db = DbExecutor::new("postgres://localhost:5432/ttrack");
     println!("Starting Server on http://127.0.0.1:8000/");
     server::new(|| {
-        App::new()
+        App::with_state(AppState { db_executor: db })
             .prefix("/api")
             .resource("/", |r| r.f(greet))
+            .resource("/users", |r| r.method(http::Method::GET).f(users))
             .resource("/{name}", |r| r.f(greet))
     }).bind("127.0.0.1:8000")
     .expect("Can not bind to port 8000")
