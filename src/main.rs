@@ -56,15 +56,15 @@ fn users(req: &HttpRequest<AppState>) -> impl Responder {
 
     // let sql = "SELECT * FROM users WHERE (usr_employment_start IS NULL OR usr_employment_start <= $1) AND (usr_employment_end IS NULL OR usr_employment_end >= $1)";
     // let now = Instant::now();
-    let sql = "SELECT id, firstname, lastname, email FROM users";
+    let sql = "SELECT usr_id, usr_firstname, usr_lastname, usr_email FROM users";
 
     let mut u = Vec::new();
     for row in &db.query(sql, &[]).unwrap() {
         let user = User {
-            id: row.get(0),
-            firstname: row.get(1),
-            lastname: row.get(2),
-            email: row.get(3),
+            id: row.get("usr_id"),
+            firstname: row.get("usr_firstname"),
+            lastname: row.get("usr_lastname"),
+            email: row.get("usr_email"),
         };
         u.push(user);
     }
@@ -80,12 +80,12 @@ fn greet(req: &HttpRequest<AppState>) -> impl Responder {
 
 fn main() {
     let manager =
-        PostgresConnectionManager::new("postgres://localhost:5432/ttrack", TlsMode::None).unwrap();
+        PostgresConnectionManager::new("postgres://postgres:postgres@localhost:5432/ttrack", TlsMode::None).unwrap();
     let pool = r2d2::Pool::new(manager).unwrap();
 
     // let db = DbExecutor::new("postgres://localhost:5432/ttrack");
     println!("Starting Server on http://127.0.0.1:8000/");
-    server::new(|| {
+    server::new(move || {
         App::with_state(AppState { pool: pool.clone() })
             .prefix("/api")
             .resource("/", |r| r.f(greet))
