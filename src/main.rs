@@ -1,14 +1,16 @@
 extern crate actix_web;
 extern crate postgres;
+extern crate r2d2;
+extern crate r2d2_postgres;
 extern crate serde;
 extern crate serde_json;
 #[macro_use]
 extern crate serde_derive;
 
 use actix_web::{http, server, App, Error, HttpRequest, HttpResponse, Json, Responder};
-use actix_web::actix::actix::{Actor, SyncContext};
-use postgres::{Connection, TlsMode};
 // use std::time::Instant;
+use r2d2::Pool;
+use r2d2_postgres::{PostgresConnectionManager, TlsMode};
 
 #[derive(Serialize, Debug)]
 struct User {
@@ -32,36 +34,32 @@ impl Responder for User {
     }
 }
 
-pub struct DbExecutor(Connection);
+// pub struct DbExecutor(Connection);
 
-impl Actor for DbExecutor {
-    type Context = SyncContext<Self>;
-}
-
-impl DbExecutor {
-    pub fn new(url: &str) -> DbExecutor {
-        DbExecutor(match Connection::connect(url, TlsMode::None) {
-            Ok(conn) => conn,
-            Err(err) => panic!("Error connecting to {} {:?}", url, err),
-        })
-    }
-}
+// impl DbExecutor {
+//     pub fn new(url: &str) -> DbExecutor {
+//         DbExecutor(match Connection::connect(url, TlsMode::None) {
+//             Ok(conn) => conn,
+//             Err(err) => panic!("Error connecting to {} {:?}", url, err),
+//         })
+//     }
+// }
 
 struct AppState {
-    db_executor: DbExecutor,
+    pool: Pool<PostgresConnectionManager>,
 }
 
 // Response Error trait
 
 fn users(req: &HttpRequest<AppState>) -> impl Responder {
-    let db = req.state().db_executor; // <- get count
+    let db = req.state().pool.get().unwrap(); // <- get count
 
     // let sql = "SELECT * FROM users WHERE (usr_employment_start IS NULL OR usr_employment_start <= $1) AND (usr_employment_end IS NULL OR usr_employment_end >= $1)";
     // let now = Instant::now();
     let sql = "SELECT id, firstname, lastname, email FROM users";
 
     let mut u = Vec::new();
-    for row in &db.0.query(sql, &[]).unwrap() {
+    for row in &db.query(sql, &[]).unwrap() {
         let user = User {
             id: row.get(0),
             firstname: row.get(1),
@@ -81,10 +79,14 @@ fn greet(req: &HttpRequest<AppState>) -> impl Responder {
 }
 
 fn main() {
-    let db = DbExecutor::new("postgres://localhost:5432/ttrack");
+    let manager =
+        PostgresConnectionManager::new("postgres://localhost:5432/ttrack", TlsMode::None).unwrap();
+    let pool = r2d2::Pool::new(manager).unwrap();
+
+    // let db = DbExecutor::new("postgres://localhost:5432/ttrack");
     println!("Starting Server on http://127.0.0.1:8000/");
     server::new(|| {
-        App::with_state(AppState { db_executor: db })
+        App::with_state(AppState { pool: pool.clone() })
             .prefix("/api")
             .resource("/", |r| r.f(greet))
             .resource("/users", |r| r.method(http::Method::GET).f(users))

@@ -4,8 +4,11 @@ version = "0.1.0"
 authors = ["Thomas Subera <thomas.subera@gmail.com>"]
 
 [dependencies]
-actix-web = "0.7.7"
+actix-web = "0.7.8"
 postgres = "0.15.2"
+postgres-derive = "0.3.3"
 serde = "1.0.79"
-serde_json = "1.0.27"
+serde_json = "1.0.28"
 serde_derive = "1.0.79"
+r2d2 = "0.8.2"
+r2d2_postgres = "0.14.0"
