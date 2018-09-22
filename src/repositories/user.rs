@@ -35,24 +35,22 @@ impl From<postgres::Error> for Error {
     }
 }
 
-impl User {
-    pub fn list_active(conn: &Pool<PostgresConnectionManager>) -> Result<Vec<User>, Error> {
-        let db = conn.get()?;
+pub fn list_active(conn: &Pool<PostgresConnectionManager>) -> Result<Vec<User>, Error> {
+    let db = conn.get()?;
 
-        let sql = "SELECT * FROM users WHERE (usr_employment_start IS NULL OR usr_employment_start <= now()) AND (usr_employment_end IS NULL OR usr_employment_end >= now())";
+    let sql = "SELECT * FROM users WHERE (usr_employment_start IS NULL OR usr_employment_start <= now()) AND (usr_employment_end IS NULL OR usr_employment_end >= now())";
 
-        let mut users = Vec::new();
-        let rows = &db.query(sql, &[]).expect("Failed to select active users");
-        for row in rows {
-            let user = User {
-                id: row.get("usr_id"),
-                firstname: row.get("usr_firstname"),
-                lastname: row.get("usr_lastname"),
-                email: row.get("usr_email"),
-            };
-            users.push(user);
-        }
-
-        Ok(users)
+    let mut users = Vec::new();
+    let rows = &db.query(sql, &[]).expect("Failed to select active users");
+    for row in rows {
+        let user = User {
+            id: row.get("usr_id"),
+            firstname: row.get("usr_firstname"),
+            lastname: row.get("usr_lastname"),
+            email: row.get("usr_email"),
+        };
+        users.push(user);
     }
+
+    Ok(users)
 }
