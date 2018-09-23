@@ -19,6 +19,7 @@ use service::AppState;
 
 use actix_web::{http, middleware, server, App, HttpRequest, Responder};
 use r2d2_postgres::{PostgresConnectionManager, TlsMode};
+use std::env;
 
 fn greet(req: &HttpRequest<AppState>) -> impl Responder {
     let to = req.match_info().get("name").unwrap_or("World");
@@ -26,13 +27,19 @@ fn greet(req: &HttpRequest<AppState>) -> impl Responder {
 }
 
 fn main() {
-    ::std::env::set_var("RUST_LOG", "actix_web=info");
+    env::set_var("RUST_LOG", "actix_web=info");
     env_logger::init();
 
-    let manager = PostgresConnectionManager::new(
+    env::set_var(
+        "DB_CONNECTION",
         "postgres://postgres:postgres@localhost:5432/ttrack",
-        TlsMode::None,
-    ).expect("Cannot create postgres connection manager");
+    );
+    let connection_string = env::var("DB_CONNECTION").expect(
+        "Environment Variable DB_CONNECTION is missing for database connection configuration",
+    );
+
+    let manager = PostgresConnectionManager::new(connection_string, TlsMode::None)
+        .expect("Cannot create postgres connection manager");
     let pool = r2d2::Pool::new(manager).expect("Cannot connect to database");
 
     server::new(move || {
