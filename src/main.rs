@@ -32,8 +32,8 @@ fn main() {
     let manager = PostgresConnectionManager::new(
         "postgres://postgres:postgres@localhost:5432/ttrack",
         TlsMode::None,
-    ).unwrap();
-    let pool = r2d2::Pool::new(manager).unwrap();
+    ).expect("Cannot create postgres connection manager");
+    let pool = r2d2::Pool::new(manager).expect("Cannot connect to database");
 
     server::new(move || {
         App::with_state(AppState { pool: pool.clone() })
